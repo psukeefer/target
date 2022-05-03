@@ -109,6 +109,8 @@ if( millis()%1000 < 50 ){
  */
 }
 
+//delay
+
 }
 
 void update_display() {
