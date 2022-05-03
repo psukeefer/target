@@ -15,6 +15,8 @@ const int pin_d6 = 6;
 const int pin_d7 = 7; 
 const int pin_BL = 10; 
 
+//test
+
 int count_a; 
 int count_b; 
 int count_c; 
