@@ -125,6 +125,9 @@ void loop() {
 
     update_led = 0;
     strike = 0;   
+
+    for( i = 0; i < 4; i++)
+       max_dev[i] = cal[i];
     
   }
 
