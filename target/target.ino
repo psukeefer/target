@@ -43,8 +43,8 @@ long  the_rand, cal_accum[4];
 int cal[4], Ain[4], meas[4], max_dev[4], count[4], test[4], outs[4], strike, target_count, update_led, mode;
 
 const int CONSTANT_DISPLAY_TIME = 1500;
-const int TARGET_DISPLAY_TIME = 4100; //MS
-const int TARGET_COUNTS = 15; // # of targets to display
+const int TARGET_DISPLAY_TIME = 8100; //MS
+const int TARGET_COUNTS = 25; // # of targets to display
 const int TARGET_SAMPLE_WINDOW = 200; //MS
 const int HIT_DELAY = 2000;
 const int MODE_COUNT = 3; 
@@ -120,7 +120,7 @@ void loop() {
 
     // event based actions
     
-    if( (target_count == TARGET_COUNTS) && (mode == 0) ){
+    if( (target_count == (TARGET_COUNTS+1)) && (mode == 0) ){
        
        lcd.clear();
        lcd.setCursor(0,0); 
@@ -140,21 +140,22 @@ void loop() {
         
           matrix.fillScreen(0);    //Turn off all the LEDs
           the_rand = (the_rand + random(1,4))%4;
+          target_count = target_count + 1;
 
-         switch(the_rand){
-           case 0: matrix.fillRect(0,0,8,3,RED); break;
-           case 1: matrix.fillRect(0,5,8,3,GREEN); break;
-           case 2: matrix.fillRect(32-8,0,8,3,YELLOW); break;
-           case 3: matrix.fillRect(32-8,5,8,3,BLUE); break;
-         
-         }
-         
+          if(target_count <= TARGET_COUNTS){
+               switch(the_rand){
+                 case 0: matrix.fillRect(0,0,8,3,RED); break;
+                 case 1: matrix.fillRect(32-8,0,8,3,GREEN); break;
+                 case 2: matrix.fillRect(0,5,8,3,YELLOW); break;
+                 case 3: matrix.fillRect(32-8,5,8,3,BLUE); break;
+               
+               }
+          }
         matrix.setCursor(11, 0);
         matrix.print(count[0] + count[1] + count[2] + count[3]);  
 
         matrix.show();
-  
-        target_count = target_count + 1;
+
         update_led = 0;
         strike = 0;   
     
@@ -265,8 +266,8 @@ void loop() {
 
              switch(the_max_idx){
                case 0: matrix.fillRect(0,0,8,3,RED); break;
-               case 1: matrix.fillRect(0,5,8,3,GREEN); break;
-               case 2: matrix.fillRect(32-8,0,8,3,YELLOW); break;
+               case 1: matrix.fillRect(32-8,0,8,3,GREEN); break;
+               case 2: matrix.fillRect(0,5,8,3,YELLOW); break;
                case 3: matrix.fillRect(32-8,5,8,3,BLUE); break;
              
              }
@@ -275,7 +276,6 @@ void loop() {
             matrix.print(count[0] + count[1] + count[2] + count[3]);  
             
             matrix.show();           
-            count[the_max_idx]++;
             update_display();
             delay(1500);
             
