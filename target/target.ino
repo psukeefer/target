@@ -57,8 +57,8 @@ void setup() {
 
     matrix.begin();
     matrix.setTextWrap(false);
-    matrix.setBrightness(5);
-    matrix.setTextColor(RED);
+    matrix.setBrightness(210);
+    matrix.setTextColor(BLUE);
 
     Ain[0] = A1;
     Ain[1] = A2;
@@ -147,7 +147,7 @@ void loop() {
                  case 0: matrix.fillRect(0,0,8,3,RED); break;
                  case 1: matrix.fillRect(32-8,0,8,3,GREEN); break;
                  case 2: matrix.fillRect(0,5,8,3,YELLOW); break;
-                 case 3: matrix.fillRect(32-8,5,8,3,BLUE); break;
+                 case 3: matrix.fillRect(32-8,5,8,3,CYAN); break;
                
                }
           }
@@ -268,7 +268,7 @@ void loop() {
                case 0: matrix.fillRect(0,0,8,3,RED); break;
                case 1: matrix.fillRect(32-8,0,8,3,GREEN); break;
                case 2: matrix.fillRect(0,5,8,3,YELLOW); break;
-               case 3: matrix.fillRect(32-8,5,8,3,BLUE); break;
+               case 3: matrix.fillRect(32-8,5,8,3,CYAN); break;
              
              }
              
