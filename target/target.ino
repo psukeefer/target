@@ -44,7 +44,7 @@ int cal[4], Ain[4], meas[4], max_dev[4], count[4], test[4], outs[4], strike, tar
 
 const int CONSTANT_DISPLAY_TIME = 1500;
 const int TARGET_DISPLAY_TIME = 8100; //MS
-const int TARGET_COUNTS = 25; // # of targets to display
+const int TARGET_COUNTS = 225; // # of targets to display
 const int TARGET_SAMPLE_WINDOW = 200; //MS
 const int HIT_DELAY = 2000;
 const int MODE_COUNT = 3; 
