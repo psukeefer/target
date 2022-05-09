@@ -1,5 +1,27 @@
 #include <LiquidCrystal.h>
 
+#include <Adafruit_GFX.h>
+#include <Adafruit_NeoMatrix.h>
+#include <Adafruit_NeoPixel.h>
+
+#define PIN 0
+// Color definitions
+#define BLACK    0x0000
+#define BLUE     0x001F
+#define RED      0xF800
+#define GREEN    0x07E0
+#define CYAN     0x07FF
+#define MAGENTA  0xF81F
+#define YELLOW   0xFFE0 
+#define WHITE    0xFFFF
+
+
+
+Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(32, 8, PIN,
+  NEO_MATRIX_BOTTOM    + NEO_MATRIX_RIGHT +
+  NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG,
+  NEO_GRB            + NEO_KHZ800);
+
 //LCD pin to Arduino
 const int pin_RS = 8; 
 const int pin_EN = 9; 
@@ -9,22 +31,22 @@ const int pin_d6 = 6;
 const int pin_d7 = 7; 
 const int pin_BL = 10; 
 
-const int TEST_A = 450; 
-const int TEST_B = 450; 
-const int TEST_C = 450; 
-const int TEST_D = 450; 
+const int TEST_A = 500; 
+const int TEST_B = 500; 
+const int TEST_C = 500; 
+const int TEST_D = 500; 
 
 LiquidCrystal lcd( pin_RS,  pin_EN,  pin_d4,  pin_d5,  pin_d6,  pin_d7);
 
 long  the_rand, cal_accum[4];
 
-int cal[4], meas[4], max_dev[4], count[4], test[4], outs[4], strike, target_count, update_led, mode;
+int cal[4], Ain[4], meas[4], max_dev[4], count[4], test[4], outs[4], strike, target_count, update_led, mode;
 
 const int CONSTANT_DISPLAY_TIME = 1500;
-const int TARGET_DISPLAY_TIME = 5000; //MS
-const int TARGET_COUNTS = 25; // # of targets to display
+const int TARGET_DISPLAY_TIME = 4100; //MS
+const int TARGET_COUNTS = 15; // # of targets to display
 const int TARGET_SAMPLE_WINDOW = 200; //MS
-const int START_DELAY = 5000;
+const int HIT_DELAY = 2000;
 const int MODE_COUNT = 3; 
 
 unsigned int sel_stat;
@@ -32,21 +54,16 @@ unsigned int sel_stat;
 void setup() {
     
     int i,j; 
-     
-    outs[0] = 0;
-    outs[1] = 1;
-    outs[2] = 2;
-    outs[3] = 3;
 
-    pinMode(0, OUTPUT);
-    pinMode(1, OUTPUT);
-    pinMode(2, OUTPUT);
-    pinMode(3, OUTPUT); 
+    matrix.begin();
+    matrix.setTextWrap(false);
+    matrix.setBrightness(5);
+    matrix.setTextColor(RED);
 
-    digitalWrite(0, LOW);
-    digitalWrite(1, LOW);
-    digitalWrite(2, LOW);
-    digitalWrite(3, LOW);
+    Ain[0] = A1;
+    Ain[1] = A2;
+    Ain[2] = A3;
+    Ain[3] = A4;
 
     test[0] = TEST_A;
     test[1] = TEST_B;
@@ -97,54 +114,61 @@ void setup() {
 
 void loop() {
 
-    int i, the_max_idx, sel_button;
+    int i, the_max_idx, sel_button, tmp;
     long loop_time;
     char msg[17];
 
     // event based actions
-
+    
     if( (target_count == TARGET_COUNTS) && (mode == 0) ){
-
-       digitalWrite(outs[the_rand], LOW);   
-
+       
        lcd.clear();
        lcd.setCursor(0,0); 
-       lcd.print(count[0] + count[1] + count[2] + count[3] );  
+       sprintf(msg, "%3u / %3u HIT", count[0] + count[1] + count[2] + count[3], TARGET_COUNTS );   
+       lcd.print(msg );  
+
+       matrix.fillScreen(0);    //Turn off all the LEDs   
+       matrix.setCursor(11, 0);
+       matrix.print(count[0] + count[1] + count[2] + count[3]);   
+       matrix.show();
 
        while(1){} //pause;
-       
+      
     }
   
-    if(( ( strike || update_led )) ){
+    if(( ( update_led )) ){
+        
+          matrix.fillScreen(0);    //Turn off all the LEDs
+          the_rand = (the_rand + random(1,4))%4;
 
-        digitalWrite(outs[the_rand], LOW);   
-        the_rand = (the_rand + random(1,4))%4;
-        digitalWrite(outs[the_rand], HIGH);
-        strike = 0;
+         switch(the_rand){
+           case 0: matrix.fillRect(0,0,8,3,RED); break;
+           case 1: matrix.fillRect(0,5,8,3,GREEN); break;
+           case 2: matrix.fillRect(32-8,0,8,3,YELLOW); break;
+           case 3: matrix.fillRect(32-8,5,8,3,BLUE); break;
+         
+         }
+         
+        matrix.setCursor(11, 0);
+        matrix.print(count[0] + count[1] + count[2] + count[3]);  
 
+        matrix.show();
+  
         target_count = target_count + 1;
-        delay(10); 
-
         update_led = 0;
         strike = 0;   
-
+    
         for( i = 0; i < 4; i++)
            max_dev[i] = cal[i];
 
+        return;
+
     } 
 
-    if( mode == 2 ){
-
-      update_display();
-
-    }
-    
-    
-  
     //sample targets
     for( i = 0; i < 4; i++){
 
-        meas[i] = analogRead(i+1);
+        meas[i] = analogRead(Ain[i]);
         max_dev[i] = ( abs(cal[i] - meas[i]) > abs(cal[i] - max_dev[i]) ) ? meas[i] : max_dev[i];
                 
     } 
@@ -159,10 +183,10 @@ void loop() {
 
         if(mode == 2){
                 
-         update_display();
-         
-         for( i = 0; i < 4; i++)
-          max_dev[i] = cal[i];  
+           update_display();
+           
+           for( i = 0; i < 4; i++)
+            max_dev[i] = cal[i];  
            
         }
           
@@ -187,11 +211,12 @@ void loop() {
             strike = 0;
             target_count = 0;
             
-     
-            for( i = 0; i < 4; i++){
+            for( i = 0; i < 4; i++)
               count[i] = 0;
-              digitalWrite(i, LOW);
-            }
+        
+            matrix.fillScreen(0);    //Turn off all the LEDs
+            matrix.show();
+  
             delay(2000);  //delay for release
                               
             update_display();
@@ -211,13 +236,19 @@ void loop() {
      
        if (mode == 0){    
          
-          if(( abs(cal[the_max_idx] - max_dev[the_max_idx]) > test[the_max_idx] ) && (the_max_idx == the_rand )){
+          if(( abs(cal[the_max_idx] - max_dev[the_max_idx]) > test[the_max_idx] ) && (the_max_idx == the_rand ) && (strike == 0)){
           
             count[the_max_idx]++;
+            matrix.fillScreen(0);    //Turn off all the LEDs
+
+            matrix.setCursor(11, 0);
+            matrix.print(count[0] + count[1] + count[2] + count[3]);  
+            
+            matrix.show();
+            
             strike = 1;
             update_display();
-            delay(750);
-            
+         
           }
 
           for( i = 0; i < 4; i++)
@@ -229,14 +260,24 @@ void loop() {
          
           if(( abs(cal[the_max_idx] - max_dev[the_max_idx]) > test[the_max_idx] )){
 
-            for( i = 0; i < 4; i++)
-              digitalWrite(i, LOW);
-              
-            digitalWrite(outs[the_max_idx], HIGH);
+            count[the_max_idx]++;
+            matrix.fillScreen(0);    //Turn off all the LEDs
+
+             switch(the_max_idx){
+               case 0: matrix.fillRect(0,0,8,3,RED); break;
+               case 1: matrix.fillRect(0,5,8,3,GREEN); break;
+               case 2: matrix.fillRect(32-8,0,8,3,YELLOW); break;
+               case 3: matrix.fillRect(32-8,5,8,3,BLUE); break;
+             
+             }
+             
+            matrix.setCursor(11, 0);
+            matrix.print(count[0] + count[1] + count[2] + count[3]);  
             
+            matrix.show();           
             count[the_max_idx]++;
             update_display();
-            delay(750);
+            delay(1500);
             
           }
           
@@ -245,11 +286,12 @@ void loop() {
              
        }
      
-       if(analogRead(0) < 800)
+       if(analogRead(A0) < 800)
            sel_stat = (sel_stat << 1)|1;
        else
            sel_stat = 0;
-       
+
+       delay(20);
        return;
      
     }
