@@ -15,12 +15,10 @@
 #define YELLOW   0xFFE0 
 #define WHITE    0xFFFF
 
-
-
-Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(32, 8, PIN,
-  NEO_MATRIX_BOTTOM    + NEO_MATRIX_RIGHT +
-  NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG,
-  NEO_GRB            + NEO_KHZ800);
+Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(   32, 8, PIN,
+                                                  NEO_MATRIX_BOTTOM    + NEO_MATRIX_RIGHT +
+                                                  NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG,
+                                                  NEO_GRB            + NEO_KHZ800);
 
 //LCD pin to Arduino
 const int pin_RS = 8; 
@@ -38,14 +36,27 @@ const int TEST_D = 500;
 
 LiquidCrystal lcd( pin_RS,  pin_EN,  pin_d4,  pin_d5,  pin_d6,  pin_d7);
 
-long  the_rand, cal_accum[4];
+long  the_rand, cal_accum[4], loop_time;
 
-int cal[4], Ain[4], meas[4], max_dev[4], count[4], test[4], outs[4], strike, target_count, update_led, mode;
+int cal[4], Ain[4], meas[4], max_dev[4], count[4], TEST_VAL[4], outs[4], strike, target_count, update_led, mode;
 
-const int CONSTANT_DISPLAY_TIME = 1500;
-const int TARGET_DISPLAY_TIME = 8100; //MS
-const int TARGET_COUNTS = 225; // # of targets to display
+//time windows
+const int CONSTANT_DISPLAY_WINDOW = 1500;
+const int TARGET_DISPLAY_WINDOW = 8000; //MS
 const int TARGET_SAMPLE_WINDOW = 200; //MS
+const int SEL_BUTTON_WINDOW = 2000; //MS
+
+long time_CONSTANT_DISPLAY;
+long time_TARGET_DISPLAY;
+long time_TARGET_SAMPLE;
+long time_SEL_BUTTON;
+
+int     flag_CONSTANT_DISPLAY_WINDOW,
+        flag_SEL_BUTTON_WINDOW,
+        flag_TARGET_SAMPLE_WINDOW,
+        flag_TARGET_DISPLAY_WINDOW;
+
+const int TARGET_COUNTS = 20; // # of targets to display
 const int HIT_DELAY = 2000;
 const int MODE_COUNT = 3; 
 
@@ -65,10 +76,10 @@ void setup() {
     Ain[2] = A3;
     Ain[3] = A4;
 
-    test[0] = TEST_A;
-    test[1] = TEST_B;
-    test[2] = TEST_C;
-    test[3] = TEST_D;
+    TEST_VAL[0] = TEST_A;
+    TEST_VAL[1] = TEST_B;
+    TEST_VAL[2] = TEST_C;
+    TEST_VAL[3] = TEST_D;
 
     lcd.begin(16, 2);
 
@@ -109,15 +120,18 @@ void setup() {
 
     mode = 0;
     sel_stat = 0;
+   
+    time_CONSTANT_DISPLAY = time_TARGET_DISPLAY = time_TARGET_SAMPLE = millis();
  
 }
 
 void loop() {
 
     int i, the_max_idx, sel_button, tmp;
-    long loop_time;
     char msg[17];
+    double test, test_max;
 
+    //////////////////////////////
     // event based actions
     
     if( (target_count == (TARGET_COUNTS+1)) && (mode == 0) ){
@@ -136,32 +150,42 @@ void loop() {
       
     }
   
-    if(( ( update_led )) ){
+    if( update_led ){
         
           matrix.fillScreen(0);    //Turn off all the LEDs
           the_rand = (the_rand + random(1,4))%4;
-          target_count = target_count + 1;
 
-          if(target_count <= TARGET_COUNTS){
+          if(target_count < TARGET_COUNTS){
                switch(the_rand){
-                 case 0: matrix.fillRect(0,0,8,3,RED); break;
-                 case 1: matrix.fillRect(32-8,0,8,3,GREEN); break;
-                 case 2: matrix.fillRect(0,5,8,3,YELLOW); break;
-                 case 3: matrix.fillRect(32-8,5,8,3,CYAN); break;
+                 case 0: matrix.fillRect(0,0,6,3,RED); break;
+                 case 1: matrix.fillRect(32-6,0,6,3,GREEN); break;
+                 case 2: matrix.fillRect(0,5,6,3,YELLOW); break;
+                 case 3: matrix.fillRect(32-6,5,6,3,CYAN); break;
                
                }
           }
         matrix.setCursor(11, 0);
         matrix.print(count[0] + count[1] + count[2] + count[3]);  
 
-        matrix.show();
+        if(mode == 0){
+          matrix.drawLine(0, 7, 31, 7, BLACK); //clear out
+          matrix.drawLine(0, 7, (TARGET_COUNTS  - target_count) - 1, 7, RED);
+        }
 
+        matrix.show();
+        
+        if(mode == 0)
+            target_count = target_count + 1;
+            
         update_led = 0;
         strike = 0;   
     
         for( i = 0; i < 4; i++)
            max_dev[i] = cal[i];
 
+        if(mode == 1)
+          delay(HIT_DELAY);
+        
         return;
 
     } 
@@ -177,30 +201,35 @@ void loop() {
     ///////////////////////////////////
     //time based actions
     ////////////////////////////////////
-    
+              
     loop_time = millis(); //update time
 
-    if(( loop_time%CONSTANT_DISPLAY_TIME < 20 )){
-
-        if(mode == 2){
-                
-           update_display();
-           
-           for( i = 0; i < 4; i++)
-            max_dev[i] = cal[i];  
-           
-        }
-          
-    
-    }
-    
-    if(( loop_time%TARGET_DISPLAY_TIME < 20 )){
-
-        if( mode == 0){
-          update_led = 1;
-          delay(20);
-        }
-        
+    flag_CONSTANT_DISPLAY_WINDOW = 0;
+    flag_SEL_BUTTON_WINDOW = 0;
+    flag_TARGET_SAMPLE_WINDOW = 0;
+    flag_TARGET_DISPLAY_WINDOW = 0;
+   
+   if (abs(loop_time - time_CONSTANT_DISPLAY) > CONSTANT_DISPLAY_WINDOW){
+       flag_CONSTANT_DISPLAY_WINDOW = 1;
+       time_CONSTANT_DISPLAY = loop_time;
+   }
+  
+   if (abs(loop_time - time_SEL_BUTTON) > SEL_BUTTON_WINDOW ){
+       flag_SEL_BUTTON_WINDOW = 1;
+       time_SEL_BUTTON = loop_time;
+   }
+ 
+   if(abs(loop_time - time_TARGET_SAMPLE) > TARGET_SAMPLE_WINDOW){
+       flag_TARGET_SAMPLE_WINDOW = 1;
+       time_TARGET_SAMPLE = loop_time;
+   }else if(abs(loop_time - time_TARGET_DISPLAY) > TARGET_DISPLAY_WINDOW){
+             flag_TARGET_DISPLAY_WINDOW = 1;
+             time_TARGET_DISPLAY = loop_time; 
+       
+   }
+   
+   if(flag_SEL_BUTTON_WINDOW){
+       
         if(sel_stat == 0xFFFF){
           
             mode = (mode + 1)%MODE_COUNT;
@@ -218,28 +247,57 @@ void loop() {
             matrix.fillScreen(0);    //Turn off all the LEDs
             matrix.show();
   
-            delay(2000);  //delay for release
+            delay(SEL_BUTTON_WINDOW);  //delay for release
                               
             update_display();
+
+            return;
                 
         }
         
-        return;
-    }
-
-    //end of sampling window actions
-    if( loop_time%TARGET_SAMPLE_WINDOW < 20 ){
-      
-       the_max_idx = 0;
-   
-       for( i = 0; i < 4; i++)
-            the_max_idx = ( abs(cal[i] - max_dev[i]) > abs(cal[the_max_idx] - max_dev[the_max_idx]) ) ? i : the_max_idx;
+   }
      
-       if (mode == 0){    
-         
-          if(( abs(cal[the_max_idx] - max_dev[the_max_idx]) > test[the_max_idx] ) && (the_max_idx == the_rand ) && (strike == 0)){
-          
-            count[the_max_idx]++;
+    if( flag_TARGET_SAMPLE_WINDOW ){
+
+        the_max_idx = 0;
+        test_max = 0.0;
+
+        //choose the max deviated sensor, as a percentage of test value
+        for( i = 0; i < 4; i++){
+            
+            test = abs(cal[i] - max_dev[i]) / TEST_VAL[i];
+            
+            if( test > test_max){
+                test_max = test;
+                the_max_idx = i;
+            }
+            
+        }
+
+        // if SEL button pressed during the window, push in a 1 to sel_stat
+        if(analogRead(A0) < 800)
+           sel_stat = (sel_stat << 1)|1;
+        else
+           sel_stat = 0;
+
+    }  
+   
+   if(mode == 0){
+             
+       if(flag_TARGET_DISPLAY_WINDOW)
+           update_led = 1;
+              
+       if(flag_TARGET_SAMPLE_WINDOW)    {  
+        
+        if(( abs(cal[the_max_idx] - max_dev[the_max_idx]) > TEST_VAL[the_max_idx] ) && (the_max_idx == the_rand ) && (strike == 0)){
+
+            if(abs(loop_time - time_TARGET_DISPLAY) < TARGET_DISPLAY_WINDOW/4)
+              count[the_max_idx]+=3;
+            else if(abs(loop_time - time_TARGET_DISPLAY) < TARGET_DISPLAY_WINDOW/2)
+                    count[the_max_idx]+=2;
+                else
+                  count[the_max_idx]+=1;
+   
             matrix.fillScreen(0);    //Turn off all the LEDs
 
             matrix.setCursor(11, 0);
@@ -253,49 +311,48 @@ void loop() {
           }
 
           for( i = 0; i < 4; i++)
-            max_dev[i] = cal[i]; 
-          
+            max_dev[i] = cal[i];  
+            
        }
-
-       if (mode == 1){    
-         
-          if(( abs(cal[the_max_idx] - max_dev[the_max_idx]) > test[the_max_idx] )){
-
-            count[the_max_idx]++;
-            matrix.fillScreen(0);    //Turn off all the LEDs
-
-             switch(the_max_idx){
-               case 0: matrix.fillRect(0,0,8,3,RED); break;
-               case 1: matrix.fillRect(32-8,0,8,3,GREEN); break;
-               case 2: matrix.fillRect(0,5,8,3,YELLOW); break;
-               case 3: matrix.fillRect(32-8,5,8,3,CYAN); break;
-             
-             }
-             
-            matrix.setCursor(11, 0);
-            matrix.print(count[0] + count[1] + count[2] + count[3]);  
-            
-            matrix.show();           
-            update_display();
-            delay(1500);
-            
+  
+   }
+   
+   
+   if(mode == 1){
+       
+       if(flag_TARGET_SAMPLE_WINDOW)    {  
+       
+          if( ( abs(cal[the_max_idx] - max_dev[the_max_idx]) > TEST_VAL[the_max_idx] ) && (the_max_idx == the_rand ) ){
+              
+            count[the_max_idx]++;    
+            update_display();           
+            update_led = 1;  
+                      
           }
           
           for( i = 0; i < 4; i++)
             max_dev[i] = cal[i]; 
-             
+        
        }
-     
-       if(analogRead(A0) < 800)
-           sel_stat = (sel_stat << 1)|1;
-       else
-           sel_stat = 0;
+       
+       
+   }
+   
+  
+   if(mode == 2){
 
-       delay(20);
-       return;
-     
+        if(( flag_CONSTANT_DISPLAY_WINDOW )){
+                  
+               update_display();
+               
+               for( i = 0; i < 4; i++)
+                max_dev[i] = cal[i];
+
+                            
+        }
+        
     }
-
+       
 
 }
 
