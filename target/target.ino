@@ -31,8 +31,8 @@ const int pin_BL = 10;
 
 const int TEST_A = 500; 
 const int TEST_B = 500; 
-const int TEST_C = 500; 
-const int TEST_D = 500; 
+const int TEST_C = 400; 
+const int TEST_D = 400; 
 
 LiquidCrystal lcd( pin_RS,  pin_EN,  pin_d4,  pin_d5,  pin_d6,  pin_d7);
 
@@ -146,7 +146,19 @@ void loop() {
        matrix.print(count[0] + count[1] + count[2] + count[3]);   
        matrix.show();
 
-       while(1){} //pause;
+       tmp = analogRead(1);
+       
+       while(tmp > 800)
+        tmp = analogRead(1);
+
+       target_count = 0;
+       update_led = 1;
+       strike = 0;
+       
+       for( i = 0; i < 4; i++)
+          count[i] = 0;
+          
+       return;
       
     }
   
@@ -185,6 +197,10 @@ void loop() {
 
         if(mode == 1)
           delay(HIT_DELAY);
+
+        loop_time = millis();
+        time_TARGET_DISPLAY = loop_time; 
+        time_TARGET_SAMPLE = loop_time;
         
         return;
 
@@ -225,7 +241,7 @@ void loop() {
    }else if(abs(loop_time - time_TARGET_DISPLAY) > TARGET_DISPLAY_WINDOW){
              flag_TARGET_DISPLAY_WINDOW = 1;
              time_TARGET_DISPLAY = loop_time; 
-       
+             time_TARGET_SAMPLE = loop_time;
    }
    
    if(flag_SEL_BUTTON_WINDOW){
@@ -233,7 +249,7 @@ void loop() {
         if(sel_stat == 0xFFFF){
           
             mode = (mode + 1)%MODE_COUNT;
-
+            sel_stat = 0;
             sprintf(msg, "MODE = %5u", mode);  
             lcd.clear();          
             lcd.print(msg);  
@@ -251,6 +267,9 @@ void loop() {
                               
             update_display();
 
+            if (mode < 2)
+              update_led = 1;
+              
             return;
                 
         }
@@ -291,9 +310,9 @@ void loop() {
         
         if(( abs(cal[the_max_idx] - max_dev[the_max_idx]) > TEST_VAL[the_max_idx] ) && (the_max_idx == the_rand ) && (strike == 0)){
 
-            if(abs(loop_time - time_TARGET_DISPLAY) < TARGET_DISPLAY_WINDOW/4)
+            if(abs(loop_time - time_TARGET_DISPLAY) < (TARGET_DISPLAY_WINDOW/4 + TARGET_SAMPLE_WINDOW) )
               count[the_max_idx]+=3;
-            else if(abs(loop_time - time_TARGET_DISPLAY) < TARGET_DISPLAY_WINDOW/2)
+            else if(abs(loop_time - time_TARGET_DISPLAY) < (TARGET_DISPLAY_WINDOW/2 + TARGET_SAMPLE_WINDOW) )
                     count[the_max_idx]+=2;
                 else
                   count[the_max_idx]+=1;
@@ -307,6 +326,9 @@ void loop() {
             
             strike = 1;
             update_display();
+
+            update_led = 1;
+            delay(HIT_DELAY);
          
           }
 
