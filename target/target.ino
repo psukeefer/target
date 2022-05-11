@@ -29,22 +29,23 @@ const int pin_d6 = 6;
 const int pin_d7 = 7; 
 const int pin_BL = 10; 
 
-const int TEST_A = 500; 
-const int TEST_B = 500; 
-const int TEST_C = 400; 
+
+const int TEST_A = 500;  //the amount a sensor must deviate from cal value to be considered a HIT
+const int TEST_B = 500; //larger values indicate sensors that are MORE sensitive and require LESS force to register a hit
+const int TEST_C = 400; //smaller values indicate sensors that are LESS sensitive and require MORE force to register a hit
 const int TEST_D = 400; 
 
 LiquidCrystal lcd( pin_RS,  pin_EN,  pin_d4,  pin_d5,  pin_d6,  pin_d7);
 
 long  the_rand, cal_accum[4], loop_time;
 
-int cal[4], Ain[4], meas[4], max_dev[4], count[4], TEST_VAL[4], outs[4], strike, target_count, update_led, mode;
+int cal[4], Ain[4], meas[4], max_dev[4], count[4], TEST_VAL[4], outs[4], strike, target_count, update_led, mode, menu_select;
 
 //time windows
-const int CONSTANT_DISPLAY_WINDOW = 1500;
-const int TARGET_DISPLAY_WINDOW = 8000; //MS
-const int TARGET_SAMPLE_WINDOW = 200; //MS
-const int SEL_BUTTON_WINDOW = 2000; //MS
+const int CONSTANT_DISPLAY_WINDOW = 1500; // MS for MODE=2 operation only. this is the display refresh window
+const int TARGET_DISPLAY_WINDOW = 8000; //MS for MODE=0 operation only. how long is a target displayed for
+const int TARGET_SAMPLE_WINDOW = 200; //MS analog sensor input sampling window
+const int SEL_BUTTON_WINDOW = 2000; //MS select button sampling window
 
 long time_CONSTANT_DISPLAY;
 long time_TARGET_DISPLAY;
@@ -61,6 +62,9 @@ const int HIT_DELAY = 2000;
 const int MODE_COUNT = 3; 
 
 unsigned int sel_stat;
+int serial_debug_mode = 1;
+long hit_time = 0;
+
 
 void setup() {
     
@@ -76,7 +80,7 @@ void setup() {
     Ain[2] = A3;
     Ain[3] = A4;
 
-    TEST_VAL[0] = TEST_A;
+    TEST_VAL[0] = TEST_A; //the amount a sensor must deviate from cal value to be considered a HIT
     TEST_VAL[1] = TEST_B;
     TEST_VAL[2] = TEST_C;
     TEST_VAL[3] = TEST_D;
@@ -111,25 +115,122 @@ void setup() {
     }
 
     update_display();
+    
     strike = 0;
+    target_count = 0;
+    update_led = 1;
+    mode = 0;
+    sel_stat = 0;
+           
     randomSeed( analogRead(5) );
     the_rand = random(0,4);
 
-    target_count = 0;
-    update_led = 1;
+    time_CONSTANT_DISPLAY = time_TARGET_DISPLAY = time_TARGET_SAMPLE = time_SEL_BUTTON = millis();
+   menu_select = 1;
 
-    mode = 0;
-    sel_stat = 0;
-   
-    time_CONSTANT_DISPLAY = time_TARGET_DISPLAY = time_TARGET_SAMPLE = millis();
- 
+    if(serial_debug_mode){
+      
+          pinMode(A0, INPUT_PULLUP); // sel button sensor
+      
+          Serial.begin(9600);
+          
+          for( i = 0; i < 4; i++){
+      
+              cal[i] = 1023;
+              max_dev[i] = cal[i];
+      
+          }
+      
+    }
+      
+
 }
+unsigned long x1, x2, x3, x4;
 
 void loop() {
 
-    int i, the_max_idx, sel_button, tmp;
+    int i, the_max_idx, sel_button, tmp, tmp2;
     char msg[17];
     double test, test_max;
+
+    if(menu_select){
+
+       matrix.fillScreen(0);    //Turn off all the LEDs   
+       matrix.setCursor(2, 0);
+       sprintf(msg, "MODE = %5u", mode);  
+       matrix.print( msg );   
+       matrix.show();
+       
+      
+       tmp = analogRead(1);
+       
+       if(serial_debug_mode){
+        
+          tmp = cal[0];
+          tmp2 = cal[1];
+
+          Serial.println( msg );  
+          
+       }          
+       
+       while(tmp > 800){
+
+          if(serial_debug_mode){  
+            
+            if (Serial.available() > 0) {
+  
+                  tmp = Serial.parseInt();
+                  tmp2 = Serial.parseInt();
+                  Serial.read();
+          
+            }else{
+                  tmp = cal[0];
+                  tmp2 = cal[1];
+            }
+                  
+          }else{
+                tmp = analogRead(1);   
+                tmp2 = analogRead(2);    
+          }
+                   
+          if(tmp2 < 800){
+            
+             mode = (mode + 1)%MODE_COUNT;
+            
+             matrix.fillScreen(0);    //Turn off all the LEDs   
+             matrix.setCursor(2, 0);
+             sprintf(msg, "MODE = %5u", mode);  
+             matrix.print( msg );   
+             matrix.show();
+
+             if(serial_debug_mode) Serial.println( msg );  
+    
+             delay(HIT_DELAY);
+            
+          }
+    
+
+        
+      }
+
+
+      
+     menu_select = 0;
+      
+     target_count = 0;
+     
+     if (mode < 2)
+        update_led = 1;
+        
+     strike = 0;
+
+     for( i = 0; i < 4; i++)
+        count[i] = 0;
+
+     time_CONSTANT_DISPLAY = time_TARGET_DISPLAY = time_TARGET_SAMPLE = time_SEL_BUTTON = millis();
+     
+    }
+    
 
     //////////////////////////////
     // event based actions
@@ -151,12 +252,7 @@ void loop() {
        while(tmp > 800)
         tmp = analogRead(1);
 
-       target_count = 0;
-       update_led = 1;
-       strike = 0;
-       
-       for( i = 0; i < 4; i++)
-          count[i] = 0;
+       menu_select = 1;
           
        return;
       
@@ -178,7 +274,38 @@ void loop() {
           }
         matrix.setCursor(11, 0);
         matrix.print(count[0] + count[1] + count[2] + count[3]);  
+        
+        if(serial_debug_mode){
+          
+          Serial.print("the_rand: ");
+          Serial.println(the_rand, DEC);
 
+          Serial.print("target_count: ");
+          Serial.println(target_count, DEC);
+
+          Serial.print("mode: ");
+          Serial.println(mode, DEC);
+
+          Serial.print("hit_time: ");
+          Serial.println(hit_time );
+             
+          for( i = 0; i < 4; i++){
+            Serial.print("count");
+            Serial.print(i, DEC);
+            Serial.print(": ");
+            Serial.println(count[i], DEC);
+          }
+
+          Serial.print("count: ");
+          Serial.println(count[0] + count[1] + count[2] + count[3], DEC);
+
+          Serial.println("");
+          Serial.println("");
+   
+          hit_time = 0;
+          
+        }
+        
         if(mode == 0){
           matrix.drawLine(0, 7, 31, 7, BLACK); //clear out
           matrix.drawLine(0, 7, (TARGET_COUNTS  - target_count) - 1, 7, RED);
@@ -206,13 +333,31 @@ void loop() {
 
     } 
 
-    //sample targets
-    for( i = 0; i < 4; i++){
+   if(serial_debug_mode){
 
-        meas[i] = analogRead(Ain[i]);
-        max_dev[i] = ( abs(cal[i] - meas[i]) > abs(cal[i] - max_dev[i]) ) ? meas[i] : max_dev[i];
+      if (Serial.available() > 0) {
+    
+          // read the incoming byte:
+          
+            for( i = 0; i < 4; i++){
+                meas[i] = Serial.parseInt();
+                max_dev[i] = ( abs(cal[i] - meas[i]) > abs(cal[i] - max_dev[i]) ) ? meas[i] : max_dev[i];
+            }
+            Serial.read();
+    
+           for( i = 0; i < 4; i++)
+               Serial.println(meas[i], DEC);
                 
-    } 
+       }
+
+   }else{
+      //sample targets
+      for( i = 0; i < 4; i++){
+          meas[i] = analogRead(Ain[i]);
+          max_dev[i] = ( abs(cal[i] - meas[i]) > abs(cal[i] - max_dev[i]) ) ? meas[i] : max_dev[i];
+                  
+      } 
+   }
     
     ///////////////////////////////////
     //time based actions
@@ -250,6 +395,7 @@ void loop() {
           
             mode = (mode + 1)%MODE_COUNT;
             sel_stat = 0;
+            
             sprintf(msg, "MODE = %5u", mode);  
             lcd.clear();          
             lcd.print(msg);  
@@ -259,17 +405,17 @@ void loop() {
             
             for( i = 0; i < 4; i++)
               count[i] = 0;
-        
+              
+            if (mode < 2)
+              update_led = 1;
+                      
             matrix.fillScreen(0);    //Turn off all the LEDs
             matrix.show();
   
             delay(SEL_BUTTON_WINDOW);  //delay for release
                               
             update_display();
-
-            if (mode < 2)
-              update_led = 1;
-              
+    
             return;
                 
         }
@@ -282,10 +428,11 @@ void loop() {
         test_max = 0.0;
 
         //choose the max deviated sensor, as a percentage of test value
+ 
         for( i = 0; i < 4; i++){
-            
-            test = abs(cal[i] - max_dev[i]) / TEST_VAL[i];
-            
+               
+            test = (double) abs(cal[i] - max_dev[i]) / TEST_VAL[i];
+     
             if( test > test_max){
                 test_max = test;
                 the_max_idx = i;
@@ -310,6 +457,8 @@ void loop() {
         
         if(( abs(cal[the_max_idx] - max_dev[the_max_idx]) > TEST_VAL[the_max_idx] ) && (the_max_idx == the_rand ) && (strike == 0)){
 
+            hit_time = loop_time - time_TARGET_DISPLAY;
+            
             if(abs(loop_time - time_TARGET_DISPLAY) < (TARGET_DISPLAY_WINDOW/4 + TARGET_SAMPLE_WINDOW) )
               count[the_max_idx]+=3;
             else if(abs(loop_time - time_TARGET_DISPLAY) < (TARGET_DISPLAY_WINDOW/2 + TARGET_SAMPLE_WINDOW) )
@@ -401,6 +550,6 @@ void update_display() {
     lcd.setCursor(0,1);
     lcd.print(msg2);  
 
-      return;
+    return;
 
 }
