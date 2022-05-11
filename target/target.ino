@@ -159,7 +159,7 @@ void loop() {
 
        matrix.fillScreen(0);    //Turn off all the LEDs   
        matrix.setCursor(2, 0);
-       sprintf(msg, "MODE = %5u", mode);  
+       sprintf(msg, "MD= %1u", mode);  
        matrix.setTextColor(BLUE);
        matrix.print( msg );   
        matrix.show();
@@ -202,7 +202,7 @@ void loop() {
             
              matrix.fillScreen(0);    //Turn off all the LEDs   
              matrix.setCursor(2, 0);
-             sprintf(msg, "MODE = %5u", mode);  
+             sprintf(msg, "MD= %1u", mode);  
              matrix.setTextColor(BLUE);
              matrix.print( msg );   
              matrix.show();
@@ -277,12 +277,12 @@ void loop() {
           if(target_count < TARGET_COUNTS){
               
 
-                 matrix.fillRect(0,0,6,3,       colors[new_color[0]]);
-                 matrix.fillRect(32-6,0,6,3,    colors[new_color[1]]);
-                 matrix.fillRect(0,5,6,3,       colors[new_color[2]]);
-                 matrix.fillRect(32-6,5,6,3,    colors[new_color[3]]);
+                 matrix.fillRect(0,0,5,3,       colors[new_color[0]]);
+                 matrix.fillRect(32-5,0,5,3,    colors[new_color[1]]);
+                 matrix.fillRect(0,5,5,3,       colors[new_color[2]]);
+                 matrix.fillRect(32-5,5,5,3,    colors[new_color[3]]);
                  
-                 matrix.fillRect(8,0,16,  8,     colors[new_color[the_rand]]);
+                 matrix.fillRect(9,0,14,  8,     colors[new_color[the_rand]]);
                
 
                
@@ -338,7 +338,7 @@ void loop() {
         
         if(mode == 0){
           matrix.drawLine(0, 7, 31, 7, BLACK); //clear out
-          matrix.drawLine(0, 7, (TARGET_COUNTS  - target_count) - 1, 7, RED);
+          matrix.drawLine(0, 7, (TARGET_COUNTS  - target_count) - 1, 7, colors[new_color[2]]);
         }
 
         matrix.show();
