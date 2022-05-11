@@ -39,7 +39,7 @@ LiquidCrystal lcd( pin_RS,  pin_EN,  pin_d4,  pin_d5,  pin_d6,  pin_d7);
 
 long  the_rand, cal_accum[4], loop_time;
 
-int cal[4], Ain[4], meas[4], max_dev[4], count[4], TEST_VAL[4], outs[4], strike, target_count, update_led, mode, menu_select;
+int cal[4], Ain[4], meas[4], max_dev[4], count[4], TEST_VAL[4], outs[4], strike, target_count, update_led, mode, menu_select, new_color[4];
 
 //time windows
 const int CONSTANT_DISPLAY_WINDOW = 1500; // MS for MODE=2 operation only. this is the display refresh window
@@ -62,9 +62,11 @@ const int HIT_DELAY = 2000;
 const int MODE_COUNT = 3; 
 
 unsigned int sel_stat;
-int serial_debug_mode = 1;
+int serial_debug_mode = 0;
 long hit_time = 0;
 
+unsigned int colors[] = {BLUE, RED, GREEN, YELLOW, WHITE, CYAN, MAGENTA};
+const int MAX_COLOR = 7; 
 
 void setup() {
     
@@ -158,6 +160,7 @@ void loop() {
        matrix.fillScreen(0);    //Turn off all the LEDs   
        matrix.setCursor(2, 0);
        sprintf(msg, "MODE = %5u", mode);  
+       matrix.setTextColor(BLUE);
        matrix.print( msg );   
        matrix.show();
        
@@ -200,6 +203,7 @@ void loop() {
              matrix.fillScreen(0);    //Turn off all the LEDs   
              matrix.setCursor(2, 0);
              sprintf(msg, "MODE = %5u", mode);  
+             matrix.setTextColor(BLUE);
              matrix.print( msg );   
              matrix.show();
 
@@ -244,6 +248,7 @@ void loop() {
 
        matrix.fillScreen(0);    //Turn off all the LEDs   
        matrix.setCursor(11, 0);
+       matrix.setTextColor(BLUE);
        matrix.print(count[0] + count[1] + count[2] + count[3]);   
        matrix.show();
 
@@ -260,18 +265,30 @@ void loop() {
   
     if( update_led ){
         
-          matrix.fillScreen(0);    //Turn off all the LEDs
-          the_rand = (the_rand + random(1,4))%4;
-
+        matrix.fillScreen(0);    //Turn off all the LEDs
+        the_rand = (the_rand + random(1,4))%4;
+          
+        new_color[0] = random(0, MAX_COLOR);
+        do{ new_color[1] = random(0, MAX_COLOR); }while ( new_color[1] == new_color[0] );
+        do{ new_color[2] = random(0, MAX_COLOR); }while ( (new_color[2] == new_color[0] ) || (new_color[2] == new_color[1] ) );
+        do{ new_color[3] = random(0, MAX_COLOR); }while ( (new_color[3] == new_color[0] ) || (new_color[3] == new_color[1] ) || (new_color[3] == new_color[2] ));
+          
+         
           if(target_count < TARGET_COUNTS){
-               switch(the_rand){
-                 case 0: matrix.fillRect(0,0,6,3,RED); break;
-                 case 1: matrix.fillRect(32-6,0,6,3,GREEN); break;
-                 case 2: matrix.fillRect(0,5,6,3,YELLOW); break;
-                 case 3: matrix.fillRect(32-6,5,6,3,CYAN); break;
+              
+
+                 matrix.fillRect(0,0,6,3,       colors[new_color[0]]);
+                 matrix.fillRect(32-6,0,6,3,    colors[new_color[1]]);
+                 matrix.fillRect(0,5,6,3,       colors[new_color[2]]);
+                 matrix.fillRect(32-6,5,6,3,    colors[new_color[3]]);
+                 
+                 matrix.fillRect(8,0,16,  8,     colors[new_color[the_rand]]);
                
-               }
+
+               
           }
+          
+        matrix.setTextColor(BLACK);
         matrix.setCursor(11, 0);
         matrix.print(count[0] + count[1] + count[2] + count[3]);  
         
@@ -288,6 +305,19 @@ void loop() {
 
           Serial.print("hit_time: ");
           Serial.println(hit_time );
+          
+         
+          for( i = 0; i < 4; i++){
+            Serial.print("color");
+            Serial.print(i, DEC);
+            Serial.print(": ");
+            Serial.println(colors[new_color[i]], HEX);
+          }       
+          
+        Serial.print("color target: ");
+        Serial.println(colors[new_color[the_rand]], HEX);          
+          
+          
              
           for( i = 0; i < 4; i++){
             Serial.print("count");
@@ -469,6 +499,7 @@ void loop() {
             matrix.fillScreen(0);    //Turn off all the LEDs
 
             matrix.setCursor(11, 0);
+            matrix.setTextColor(BLUE);
             matrix.print(count[0] + count[1] + count[2] + count[3]);  
             
             matrix.show();
