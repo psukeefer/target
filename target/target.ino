@@ -30,10 +30,10 @@ const int pin_d7 = 7;
 const int pin_BL = 10; 
 
 
-const int TEST_A = 500;  //the amount a sensor must deviate from cal value to be considered a HIT
-const int TEST_B = 500; //larger values indicate sensors that are MORE sensitive and require LESS force to register a hit
-const int TEST_C = 400; //smaller values indicate sensors that are LESS sensitive and require MORE force to register a hit
-const int TEST_D = 400; 
+const int TEST_A = 15;  //the amount a sensor must deviate from cal value to be considered a HIT
+const int TEST_B = 15; //larger values indicate sensors that are MORE sensitive and require LESS force to register a hit
+const int TEST_C = 15; //smaller values indicate sensors that are LESS sensitive and require MORE force to register a hit
+const int TEST_D = 15; 
 
 LiquidCrystal lcd( pin_RS,  pin_EN,  pin_d4,  pin_d5,  pin_d6,  pin_d7);
 
@@ -74,7 +74,7 @@ void setup() {
 
     matrix.begin();
     matrix.setTextWrap(false);
-    matrix.setBrightness(210);
+    matrix.setBrightness(100);
     matrix.setTextColor(BLUE);
 
     Ain[0] = A1;
@@ -176,7 +176,7 @@ void loop() {
           
        }          
        
-       while(tmp > 800){
+       while(TEST_A > (cal[0] - tmp)){
 
           if(serial_debug_mode){  
             
@@ -196,7 +196,7 @@ void loop() {
                 tmp2 = analogRead(2);    
           }
                    
-          if(tmp2 < 800){
+          if(TEST_B < (cal[1] - tmp2)){
             
              mode = (mode + 1)%MODE_COUNT;
             
